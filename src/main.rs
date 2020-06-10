@@ -8,12 +8,6 @@ pub enum BusinessError {
 }
 
 impl BusinessError {
-    pub fn get_http_code(&self) -> u16 {
-        match self {
-            BusinessError::InvalidEmail => 400,
-            BusinessError::InvalidPassword => 400,
-        }
-    }
     pub fn get_code(&self) -> String {
         match self {
             BusinessError::InvalidEmail => String::from("INVALID_EMAIL"),
@@ -29,5 +23,7 @@ impl BusinessError {
 }
 
 fn main() {
+    let error = BusinessError::InvalidPassword;
+    error.get_http_code();
     println!("Hello, world!");
 }
