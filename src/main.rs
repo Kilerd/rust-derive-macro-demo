@@ -7,17 +7,9 @@ pub enum BusinessError {
     InvalidPassword
 }
 
-impl BusinessError {
-
-    pub fn get_message(&self) -> String {
-        match self {
-            BusinessError::InvalidEmail => String::from("Invalid email"),
-            BusinessError::InvalidPassword => String::from("Invalid password"),
-        }
-    }
-}
-
 fn main() {
     let error = BusinessError::InvalidPassword;
+    println!("error {} {} {}",error.get_http_code(), error.get_code(),error.get_message());
+    let error = BusinessError::InvalidEmail;
     println!("error {} {} {}",error.get_http_code(), error.get_code(),error.get_message());
 }

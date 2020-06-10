@@ -1,4 +1,3 @@
-
 use proc_macro::{TokenStream};
 use syn::parse_macro_input;
 use proc_macro2::Ident;
@@ -9,10 +8,17 @@ pub fn detail_error_fn(input: TokenStream) -> TokenStream {
     let enum_struct = parse_macro_input!(input as syn::ItemEnum);
     dbg!(&enum_struct);
     let ident = &enum_struct.ident;
-    let variants_ident:Vec<&Ident> = enum_struct.variants.iter().map(|variant| &variant.ident).collect();
-    let code_fn_codegen:Vec<proc_macro2::TokenStream> = enum_struct.variants.iter().map(|variant| {
+    let variants_ident: Vec<&Ident> = enum_struct.variants.iter().map(|variant| &variant.ident).collect();
+    let code_fn_codegen: Vec<proc_macro2::TokenStream> = enum_struct.variants.iter().map(|variant| {
         let variant_ident = &variant.ident;
         let content = inflector::cases::screamingsnakecase::to_screaming_snake_case(&variant_ident.to_string());
+        quote! {
+            #ident::#variant_ident => String::from(#content)
+        }
+    }).collect();
+    let message_fn_codegen: Vec<proc_macro2::TokenStream> = enum_struct.variants.iter().map(|variant| {
+        let variant_ident = &variant.ident;
+        let content = inflector::cases::sentencecase::to_sentence_case(&variant_ident.to_string());
         quote! {
             #ident::#variant_ident => String::from(#content)
         }
@@ -28,6 +34,11 @@ pub fn detail_error_fn(input: TokenStream) -> TokenStream {
             pub fn get_code(&self) -> String {
                 match self {
                     #(#code_fn_codegen,)*
+                }
+            }
+            pub fn get_message(&self) -> String {
+                match self {
+                    #(#message_fn_codegen,)*
                 }
             }
         }
