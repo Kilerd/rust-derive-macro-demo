@@ -1,26 +1,65 @@
 use proc_macro::{TokenStream};
-use syn::parse_macro_input;
+use syn::{parse_macro_input, parse2, DeriveInput};
 use proc_macro2::Ident;
 use quote::quote;
+use darling::FromDeriveInput;
+use darling::FromVariant;
+
+#[derive(Debug, FromDeriveInput)]
+#[darling(attributes(detail), supports(enum_any))]
+struct DetailErrorEnum {
+    ident: syn::Ident,
+    data: darling::ast::Data<DetailErrorVariant, darling::util::Ignored>,
+}
+
+#[derive(Debug, FromVariant)]
+#[darling(attributes(detail))]
+struct DetailErrorVariant {
+    ident: syn::Ident,
+    fields: darling::ast::Fields<syn::Field>,
+    #[darling(default)]
+    code: Option<u16>,
+    #[darling(default)]
+    message: Option<String>,
+}
 
 #[proc_macro_derive(DetailError, attributes(detail))]
 pub fn detail_error_fn(input: TokenStream) -> TokenStream {
-    let enum_struct = parse_macro_input!(input as syn::ItemEnum);
-    dbg!(&enum_struct);
-    let ident = &enum_struct.ident;
-    let variants_ident: Vec<&Ident> = enum_struct.variants.iter().map(|variant| &variant.ident).collect();
-    let code_fn_codegen: Vec<proc_macro2::TokenStream> = enum_struct.variants.iter().map(|variant| {
+    handler(input.into()).into()
+}
+
+fn handler(input: proc_macro2::TokenStream) -> proc_macro2::TokenStream {
+    let result = parse2::<DeriveInput>(input).unwrap();
+    let detail_error: DetailErrorEnum = DetailErrorEnum::from_derive_input(&result).unwrap();
+
+    dbg!(&detail_error);
+
+    let ident = &detail_error.ident;
+    let variants = detail_error.data.take_enum().unwrap();
+    let http_code_fn_codegen: Vec<proc_macro2::TokenStream> = variants.iter().map(|variant| {
+        let variant_ident = &variant.ident;
+
+        let http_code = variant.code.unwrap_or(400);
+
+        quote! {
+            #ident::#variant_ident => #http_code
+        }
+    }).collect();
+    let code_fn_codegen: Vec<proc_macro2::TokenStream> = variants.iter().map(|variant| {
         let variant_ident = &variant.ident;
         let content = inflector::cases::screamingsnakecase::to_screaming_snake_case(&variant_ident.to_string());
         quote! {
             #ident::#variant_ident => String::from(#content)
         }
     }).collect();
-    let message_fn_codegen: Vec<proc_macro2::TokenStream> = enum_struct.variants.iter().map(|variant| {
+
+    let message_fn_codegen: Vec<proc_macro2::TokenStream> = variants.iter().map(|variant| {
         let variant_ident = &variant.ident;
-        let content = inflector::cases::sentencecase::to_sentence_case(&variant_ident.to_string());
+        let message = variant.message.clone().unwrap_or_else(|| {
+            inflector::cases::sentencecase::to_sentence_case(&variant_ident.to_string())
+        });
         quote! {
-            #ident::#variant_ident => String::from(#content)
+            #ident::#variant_ident => String::from(#message)
         }
     }).collect();
 
@@ -28,7 +67,7 @@ pub fn detail_error_fn(input: TokenStream) -> TokenStream {
         impl #ident {
             pub fn get_http_code(&self) -> u16 {
                 match self {
-                    #(#ident::#variants_ident => 400,)*
+                    #(#http_code_fn_codegen,)*
                 }
             }
             pub fn get_code(&self) -> String {
@@ -43,7 +82,7 @@ pub fn detail_error_fn(input: TokenStream) -> TokenStream {
             }
         }
     };
-    output.into()
+    output
 }
 
 #[cfg(test)]

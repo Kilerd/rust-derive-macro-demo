@@ -3,7 +3,7 @@ use detail_error::DetailError;
 #[derive(DetailError)]
 pub enum BusinessError {
     InvalidEmail,
-    #[detail(code=400, message="this is an invalid password")]
+    #[detail(code=500, message="this is an invalid password")]
     InvalidPassword
 }
 
