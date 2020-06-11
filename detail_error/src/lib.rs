@@ -87,8 +87,37 @@ fn handler(input: proc_macro2::TokenStream) -> proc_macro2::TokenStream {
 
 #[cfg(test)]
 mod tests {
+    use crate::handler;
+    use quote::quote;
+
     #[test]
     fn it_works() {
-        assert_eq!(2 + 2, 4);
+        let input = quote! {
+            pub enum A {
+                A,
+
+            }
+        };
+        let expected_output = quote! {
+            impl A {
+                pub fn get_http_code(&self) -> u16 {
+                    match self {
+                        A::A => 400u16,
+                    }
+                }
+                pub fn get_code(&self) -> String {
+                    match self {
+                        A::A => String::from("A"),
+                    }
+                }
+                pub fn get_message(&self) -> String {
+                    match self {
+                        A::A => String::from("A"),
+                    }
+                }
+            }
+        };
+        let output = handler(input);
+        assert_eq!(expected_output.to_string(), output.to_string());
     }
 }
